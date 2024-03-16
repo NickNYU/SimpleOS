@@ -30,13 +30,13 @@
 00000000000i[     ]   SB16 support: no
 00000000000i[     ]   USB support: no
 00000000000i[     ]   VGA extension support: vbe 
-00000000000i[MEM0 ] allocated memory at 0x7fa4ad800000. after alignment, vector=0x7fa4ad800000
+00000000000i[MEM0 ] allocated memory at 0x7fd1a1800000. after alignment, vector=0x7fd1a1800000
 00000000000i[MEM0 ] 32.00MB
 00000000000i[MEM0 ] mem block size = 0x00100000, blocks=32
 00000000000i[MEM0 ] rom at 0xfffe0000/131072 ('/Users/nick/Develop/tools/bochs/share/bochs/BIOS-bochs-latest')
 00000000000i[     ] init_dev of 'cmos' plugin device by virtual method
 00000000000i[CMOS ] Using local time for initial clock
-00000000000i[CMOS ] Setting initial clock to: Fri Mar 15 21:56:36 2024 (time0=1710510996)
+00000000000i[CMOS ] Setting initial clock to: Sat Mar 16 22:53:47 2024 (time0=1710600827)
 00000000000i[     ] init_dev of 'dma' plugin device by virtual method
 00000000000i[DMA  ] channel 4 used by cascade
 00000000000i[     ] init_dev of 'pic' plugin device by virtual method
@@ -59,7 +59,7 @@
 00000000000i[     ] init_dev of 'keyboard' plugin device by virtual method
 00000000000i[KBD  ] will paste characters every 1000 keyboard ticks
 00000000000i[     ] init_dev of 'harddrv' plugin device by virtual method
-00000000000i[HD   ] HD on ata0-0: 'hd60M.img', 'flat' mode
+00000000000i[HD   ] HD on ata0-0: '/Users/nick/Develop/clang/SimpleOS/bochs/hd60M.img', 'flat' mode
 00000000000i[IMG  ] hd_size: 62447616
 00000000000i[HD   ] ata0-0: using specified geometry: CHS=121/16/63
 00000000000i[HD   ] translation on ata0-0 set to 'none'
@@ -141,24 +141,10 @@
 00000800003i[XGUI ] charmap update. Font Height is 16
 00000866686i[BIOS ] ata0-0: PCHS=121/16/63 translation=none LCHS=121/16/63
 00004743892i[BIOS ] IDE time out
-00016771934p[BIOS ] >>PANIC<< No bootable device.
-00016771934i[CPU0 ] CPU is in real mode (active)
-00016771934i[CPU0 ] CS.mode = 16 bit
-00016771934i[CPU0 ] SS.mode = 16 bit
-00016771934i[CPU0 ] EFER   = 0x00000000
-00016771934i[CPU0 ] | EAX=0000040a  EBX=0000cd04  ECX=00090004  EDX=00000402
-00016771934i[CPU0 ] | ESP=0000ffaa  EBP=0000ffae  ESI=000e0000  EDI=0000ffac
-00016771934i[CPU0 ] | IOPL=0 id vip vif ac vm rf nt of df if tf sf ZF af PF cf
-00016771934i[CPU0 ] | SEG sltr(index|ti|rpl)     base    limit G D
-00016771934i[CPU0 ] |  CS:f000( 0004| 0|  0) 000f0000 0000ffff 0 0
-00016771934i[CPU0 ] |  DS:f000( 0005| 0|  0) 000f0000 0000ffff 0 0
-00016771934i[CPU0 ] |  SS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
-00016771934i[CPU0 ] |  ES:07c0( 0005| 0|  0) 00007c00 0000ffff 0 0
-00016771934i[CPU0 ] |  FS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
-00016771934i[CPU0 ] |  GS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
-00016771934i[CPU0 ] | EIP=0000054b (0000054a)
-00016771934i[CPU0 ] | CR0=0x60000010 CR2=0x00000000
-00016771934i[CPU0 ] | CR3=0x00000000 CR4=0x00000000
-00016771934i[CMOS ] Last time is 1710511000 (Fri Mar 15 21:56:40 2024)
-00016771934i[XGUI ] Exit
-00016771934i[CTRL ] quit_sim called with exit code 1
+00016726470i[BIOS ] Booting from 0000:7c00
+00110909193i[     ] Ctrl-C detected in signal handler.
+00110909194i[XGUI ] Mouse capture off
+00110909194i[XGUI ] Mouse capture off
+00110909194i[XGUI ] Mouse capture off
+00110909194i[XGUI ] Mouse capture off
+00110909194i[XGUI ] Mouse capture off
