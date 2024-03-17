@@ -6,6 +6,7 @@
 *.bin
 *.out
 *.iso
+*.img
 
 # Temporary files
 *~
