@@ -120,6 +120,15 @@ p_mode_start:
     mov esp, LOADER_STACK_TOP
     mov ax, SELECTOR_VIDEO
     mov gs, ax
+
+    ;----------------------------------------------------------------
+    ; 加载kernel
+    ;----------------------------------------------------------------
+    mov eax, KERNEL_START_SECTOR
+    mov ebx, KERNEL_BIN_BASE_ADDR
+    mov ecx, 200
+
+    call rd_disk_m_32
     
     call setup_page                             ; 创建页目录及页表并初始化页内存位图
     
@@ -147,8 +156,13 @@ p_mode_start:
     ; ----------------- 分页机制初始化完毕，重新加载支持分页地址后的GDT -------
     lgdt [gdt_ptr]
 
-    mov byte [gs:160], 'V'
+    jmp SELECTOR_CODE:enter_kernel
 
+    enter_kernel:
+        call kernel_init
+        mov esp, 0xc009f000
+        jmp KERNEL_ENTRY_POINT
+    
     jmp $
 
 
@@ -256,21 +270,24 @@ rd_disk_m_32:
     loop .go_on_read
     ret
 
+;----------------------------------------------------------------
+; load kernel 相关代码
+; 将 kernel.bin 中的 segment 拷贝到编译的地址
+;----------------------------------------------------------------
 kernel_init:
     xor eax, eax
     xor ebx, ebx
     xor ecx, ecx
     xor edx, edx
 
-    mov dx, [KERNEL_BIN_BASE_ADDR + 42]
-    mov ebx, [KERNEL_BIN_BASE_ADDR + 28]
-
+    mov dx, [KERNEL_BIN_BASE_ADDR + 42]         ; 偏移文件 42 字节处的属性是 e_phentsize，表示 program header 大小
+    mov ebx, [KERNEL_BIN_BASE_ADDR + 28]        ; 偏移文件开始部分 28 字节的地方是 e_phoff
     add ebx, KERNEL_BIN_BASE_ADDR
-    mov cx, [KERNEL_BIN_BASE_ADDR + 44]
+    mov cx, [KERNEL_BIN_BASE_ADDR + 44]         ; 偏移文件开始部分 44 字节的地方是 e_phnum，表示有几个 program header
 
 .each_segment:
     cmp byte [ebx], PT_NULL
-    je .PTNULL
+    je .PTNULL                                  ; 若 p_type 等于 PT_NULL，说明此 program header 未使用
 
     ; 准备mem_cpy参数
     push dword [ebx + 16]
