@@ -2,7 +2,6 @@
 
 section loader vstart=LOADER_BASE_ADDR
 LOADER_STACK_TOP  equ  LOADER_BASE_ADDR
-jmp loader_start
 
 ; 构建GDT和Descriptor
 GDT_BASE:           dd 0x00000000
@@ -94,21 +93,21 @@ loader_start:
     mov [total_memory_bytes], edx
 
 ;-------------------- 准备进入保护模式 -------------------------------
-        ;------------ 打开A20地址线 ------------
-        in al, 0x92
-        or al, 00000010B
-        out 0x92, al
+    ;------------ 打开A20地址线 ------------
+    in al, 0x92
+    or al, 00000010B
+    out 0x92, al
 
-        ;------------ 加载gdt ------------
-        lgdt [gdt_ptr]
+    ;------------ 加载gdt ------------
+    lgdt [gdt_ptr]
 
-        ;------------ cr0第0位置1 ------------
-        mov eax, cr0
-        or eax, 0x00000001
-        mov cr0, eax
+    ;------------ cr0第0位置1 ------------
+    mov eax, cr0
+    or eax, 0x00000001
+    mov cr0, eax
 
-        ;------------ 刷新流水线 ------------
-        jmp dword SELECTOR_CODE:p_mode_start
+    ;------------ 刷新流水线 ------------
+    jmp dword SELECTOR_CODE:p_mode_start
 
 [bits 32]
 p_mode_start:
@@ -121,48 +120,39 @@ p_mode_start:
     mov esp, LOADER_STACK_TOP
     mov ax, SELECTOR_VIDEO
     mov gs, ax
-
-    ; 加载kernel
-    mov eax, KERNEL_START_SECTOR
-    mov ebx, KERNEL_BIN_BASE_ADDR
-    mov ecx, 200
-
-    call rd_disk_m_32
     
-    call setup_page
-
-    ; 保存gdt表
-    sgdt [gdt_ptr]
-
-    ; 重新设置gdt描述符， 使虚拟地址指向内核的第一个页表
-    mov ebx, [gdt_ptr + 2]
+    call setup_page                             ; 创建页目录及页表并初始化页内存位图
+    
+    ; ----------------------------------------------------------------
+    ; 将GDT从物理地址，转换为分页后的地址
+    ; 栈指针，同样转换为分页后的地址
+    ; ----------------------------------------------------------------
+    sgdt [gdt_ptr]                              ; 保存gdt表到原来 gdt 内存的位置
+    mov ebx, [gdt_ptr + 2]                      ; 前部分是 2 字节大小的偏移量，其后是 4 字节大小 GDT 基址
     or dword [ebx + 0x18 + 4], 0xc0000000
-    add dword [gdt_ptr + 2], 0xc0000000
-    
-    add esp, 0xc0000000
+    add dword [gdt_ptr + 2],   0xc0000000
+    add esp, 0xc0000000                         ; 将栈指针同样映射到内核地址
 
-    ; 页目录基地址寄存器
+    ;-----------------------------------------------------------------
+    ; 写入CR3指定分页的页目录的内存起始地址 
+    ; 打开CR0的PG位，开启分页机制
+    ;-----------------------------------------------------------------
     mov eax, PAGE_DIR_TABLE_POS
     mov cr3, eax
 
-    ; 打开分页
     mov eax, cr0
     or eax, 0x80000000
     mov cr0, eax
 
+    ; ----------------- 分页机制初始化完毕，重新加载支持分页地址后的GDT -------
     lgdt [gdt_ptr]
 
-    ; 初始化kernel
-    jmp SELECTOR_CODE:enter_kernel
-
-    enter_kernel:
-        call kernel_init
-        mov esp, 0xc009f000
-        jmp KERNEL_ENTRY_POINT
+    mov byte [gs:160], 'V'
 
     jmp $
 
-    ; 创建页目录以及页表
+
+; -------------------------- 创建页目录以及页表 -------------------------
 setup_page:
     ; 页目录表占据4KB空间，清零之
     mov ecx, 4096
@@ -175,36 +165,35 @@ setup_page:
 ; 创建页目录表(PDE)
 .create_pde:
     mov eax, PAGE_DIR_TABLE_POS
-    ; 0x1000为4KB，加上页目录表起始地址便是第一个页表的地址
-    add eax, 0x1000
-    mov ebx, eax
+    add eax, 0x1000                             ; 0x1000为4KB，加上页目录表起始地址便是第 1 个页表的地址
+    mov ebx, eax                                ; 此处为 ebx 赋值，是为.create_pte 做准备，ebx 为基址
 
-    ; 设置页目录项属性
-    or eax, PG_US_U | PG_RW_W | PG_P
-    ; 设置第一个页目录项
-    mov [PAGE_DIR_TABLE_POS], eax
-    ; 第768(内核空间的第一个)个页目录项，与第一个相同，这样第一个和768个都指向低端4MB空间
-    mov [PAGE_DIR_TABLE_POS + 0xc00], eax
-    ; 最后一个表项指向自己，用于访问页目录本身
+    ; -----------------------------------------------------------------
+    ; 页表的 0xc0000000～0xffffffff 共计 1G 属于内核
+    ;       0x0～0xbfffffff        共计 3G 属于用户进程
+    ;------------------------------------------------------------------
+    or eax, PG_US_U | PG_RW_W | PG_P            ; 设置页目录项属性
+    mov [PAGE_DIR_TABLE_POS + 0x0],   eax       ; 设置第1个页目录项
+    mov [PAGE_DIR_TABLE_POS + 0xc00], eax       ; 第768(内核空间的第一个)个页目录项，与第一个相同，这样第一个和768个都指向低端4MB空间
     sub eax, 0x1000
-    mov [PAGE_DIR_TABLE_POS + 4092], eax
+    mov [PAGE_DIR_TABLE_POS + 4092],  eax       ; 使最后一个目录项指向页目录表自己的地址
 
-; 创建页表
-    mov ecx, 256
+; 创建页表(PTE)
+    mov ecx, 256                                ; 1M 低端内存 / 每页大小 4k = 256, 按顺序初始化256个页表
     mov esi, 0
     mov edx, PG_US_U | PG_RW_W | PG_P
 .create_pte:
-    mov [ebx + esi * 4], edx
-    add edx, 4096
+    mov [ebx + esi * 4], edx                    ; 此时的 ebx 已经在上面通过 eax 赋值为 0x101000，也就是第 1 个页表的地址
+    add edx, 4096                               ; edx 是页属性，加上4096就是下一个页的地址（每个步长4K这样跳转）
     inc esi
     loop .create_pte
 
-; 创建内核的其它PDE
+;------------------------ 创建内核的其它PDE ----------------------------------
     mov eax, PAGE_DIR_TABLE_POS
-    add eax, 0x2000
+    add eax, 0x2000                             ; 此时 eax 为第2个页表的位置
     or eax, PG_US_U | PG_RW_W | PG_P
     mov ebx, PAGE_DIR_TABLE_POS
-    mov ecx, 254
+    mov ecx, 254                                ; 范围为第 769～1022 的所有目录项数量
     mov esi, 769
 .create_kernel_pde:
     mov [ebx + esi * 4], eax
